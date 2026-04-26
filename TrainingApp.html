@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Training OS</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0f; color: #f1f5f9; font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+  input, button { font-family: 'DM Sans', sans-serif; }
+  input:focus { outline: none; }
+  input::placeholder { color: #4a4a5a; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Profile screen */
+  #profile-screen {
+    min-height: 100vh; display: flex; align-items: center;
+    justify-content: center; padding: 24px;
+  }
+  .profile-inner { width: 100%; max-width: 420px; }
+  .profile-logo {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    margin: 0 auto 20px; display: flex; align-items: center;
+    justify-content: center; font-size: 28px;
+  }
+  .profile-title { color: #f1f5f9; font-size: 28px; font-weight: 600; text-align: center; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .profile-subtitle { color: #64748b; text-align: center; font-size: 14px; margin-bottom: 48px; }
+  .profile-card {
+    width: 100%; padding: 20px 24px; margin-bottom: 12px;
+    background: #13131a; border: 1px solid #1e1e2e;
+    border-radius: 16px; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 16;
+    transition: all 0.2s; color: #f1f5f9;
+  }
+  .profile-card:hover { border-color: #6366f1; background: #16161f; }
+  .profile-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .profile-name { font-weight: 600; font-size: 16px; }
+  .profile-meta { color: #64748b; font-size: 13px; margin-top: 2px; }
+  .profile-arrow { margin-left: auto; color: #6366f1; font-size: 18px; }
+
+  /* API Settings Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+  }
+  .modal-box {
+    background: #13131a; border: 1px solid #1e1e2e;
+    border-radius: 20px; padding: 24px; width: 100%; max-width: 400px;
+  }
+  .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .modal-desc { color: #64748b; font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
+  .modal-desc a { color: #6366f1; text-decoration: none; }
+  .api-status-ok {
+    background: #0f1f0f; border: 1px solid #22c55e33;
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10;
+  }
+  .api-status-err {
+    background: #1a0f0f; border: 1px solid #ef444433;
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 16px;
+  }
+  .modal-input {
+    width: 100%; padding: 12px 14px; margin-bottom: 12px;
+    background: #0d0d14; border: 1px solid #1e1e2e;
+    border-radius: 10px; color: #f1f5f9; font-size: 13px;
+    font-family: 'DM Mono', monospace;
+  }
+  .modal-btns { display: flex; gap: 8px; }
+  .btn-primary {
+    flex: 1; padding: 12px; border-radius: 10px; border: none;
+    color: white; font-weight: 600; font-size: 14px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: opacity 0.2s;
+  }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger {
+    padding: 12px 16px; border-radius: 10px;
+    border: 1px solid #ef444433; background: none;
+    color: #ef4444; cursor: pointer; font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-ghost {
+    padding: 12px 16px; border-radius: 10px;
+    border: 1px solid #1e1e2e; background: none;
+    color: #64748b; cursor: pointer; font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  /* Main app */
+  #main-screen { display: none; }
+  .header {
+    padding: 16px 20px; border-bottom: 1px solid #1e1e2e;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #0d0d14; position: sticky; top: 0; z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 12; }
+  .header-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .header-name { font-weight: 600; font-size: 15px; }
+  .header-sub { font-size: 11px; color: #64748b; }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+  .btn-icon { background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px; }
+  .btn-link { background: none; border: none; color: #64748b; cursor: pointer; font-size: 13px; }
+
+  .tabs { display: flex; border-bottom: 1px solid #1e1e2e; background: #0d0d14; }
+  .tab-btn {
+    flex: 1; padding: 12px 0; background: none; border: none;
+    cursor: pointer; font-size: 13px; font-family: 'DM Sans', sans-serif;
+    color: #64748b; font-weight: 400;
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+  }
+  .tab-btn.active { font-weight: 600; }
+
+  .content { padding: 20px 20px 60px; max-width: 480px; margin: 0 auto; }
+  .section-title { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .section-sub { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+
+  /* Check-in form */
+  .field-label {
+    display: block; font-size: 12px; color: #94a3b8;
+    margin-bottom: 8px; letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .field-wrap { margin-bottom: 16px; position: relative; }
+  .field-input {
+    width: 100%; padding: 14px 16px;
+    background: #13131a; border: 1px solid #1e1e2e;
+    border-radius: 12px; color: #f1f5f9; font-size: 16px;
+    font-family: 'DM Mono', monospace; transition: border-color 0.2s;
+  }
+  .field-input:focus { border-color: #6366f188; }
+  .hrv-badge {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    display: flex; align-items: center; gap: 4px; font-size: 18px;
+  }
+  .hrv-label { font-size: 11px; font-weight: 600; }
+  .sleep-warn { color: #ef4444; font-size: 12px; margin-top: 6px; }
+
+  .workout-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .workout-btn {
+    padding: 12px 8px; border-radius: 10px;
+    border: 1px solid #1e1e2e; background: #13131a;
+    color: #94a3b8; cursor: pointer; font-size: 13px; font-weight: 400;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s; text-align: center;
+  }
+  .workout-btn.active { font-weight: 600; }
+  .workout-tag { font-size: 10px; margin-top: 2px; opacity: 0.7; }
+
+  .btn-submit {
+    width: 100%; padding: 16px; border: none; border-radius: 14px;
+    cursor: pointer; color: white; font-size: 15px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif; transition: all 0.2s; letter-spacing: 0.2px;
+  }
+  .btn-submit:disabled { background: #1e1e2e !important; color: #4a4a5a; cursor: not-allowed; }
+
+  /* Result */
+  .result-summary {
+    background: #13131a; border: 1px solid #1e1e2e;
+    border-radius: 16px; padding: 16px; margin-bottom: 16px;
+    display: flex; gap: 16px; align-items: center;
+  }
+  .result-signal { text-align: center; }
+  .result-emoji { font-size: 32px; }
+  .result-slabel { font-size: 11px; font-weight: 600; }
+  .result-meta { font-size: 13px; color: #64748b; }
+  .result-values { font-size: 15px; font-weight: 500; font-family: 'DM Mono', monospace; }
+  .result-box {
+    border-radius: 16px; padding: 20px; margin-bottom: 20px; min-height: 120px;
+  }
+  .result-text { line-height: 1.7; font-size: 14px; color: #e2e8f0; white-space: pre-wrap; }
+  .loading-wrap { display: flex; align-items: center; gap: 12; color: #64748b; }
+  .spinner {
+    width: 20px; height: 20px; border-radius: 50%;
+    border-width: 2px; border-style: solid; border-top-color: transparent;
+    animation: spin 0.8s linear infinite; flex-shrink: 0;
+  }
+  .btn-back {
+    width: 100%; padding: 14px; background: none;
+    border-radius: 14px; cursor: pointer;
+    font-size: 14px; font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  /* Zones */
+  .zone-card {
+    background: #13131a; border: 1px solid #1e1e2e;
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 14;
+  }
+  .zone-icon {
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .zone-name { font-weight: 500; font-size: 14px; }
+  .zone-bpm { font-family: 'DM Mono', monospace; font-size: 13px; color: #94a3b8; }
+  .zone-bar-bg { background: #1e1e2e; border-radius: 4px; height: 4px; margin-top: 6px; }
+  .zone-bar { height: 100%; border-radius: 4px; }
+  .hrv-card {
+    background: #13131a; border: 1px solid #1e1e2e;
+    border-radius: 12px; padding: 16px; margin-top: 12px;
+  }
+  .hrv-card-title { font-size: 12px; color: #64748b; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hrv-row { display: flex; align-items: center; gap: 12; margin-bottom: 10px; }
+  .hrv-row:last-child { margin-bottom: 0; }
+  .hrv-emoji { font-size: 20px; }
+  .hrv-info-label { font-weight: 600; font-size: 13px; }
+  .hrv-info-range { font-family: 'DM Mono', monospace; font-size: 12px; color: #64748b; }
+  .hrv-info-desc { font-size: 12px; color: #94a3b8; }
+  .restriction-box {
+    background: #1a0f0f; border: 1px solid #ef444433;
+    border-radius: 12px; padding: 14px 16px; margin-top: 16px;
+  }
+
+  /* History */
+  .history-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .btn-clear {
+    background: none; border: 1px solid #ef444433; border-radius: 8px;
+    color: #ef4444; font-size: 12px; padding: 4px 10px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .history-empty {
+    background: #13131a; border: 1px solid #1e1e2e;
+    border-radius: 12px; padding: 32px; text-align: center;
+  }
+  .history-card {
+    background: #13131a; border: 1px solid #1e1e2e;
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+    animation: fadeIn 0.3s ease;
+  }
+  .history-top { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .history-workout { font-size: 13px; font-weight: 600; }
+  .history-date { font-size: 12px; color: #64748b; }
+  .history-stats { display: flex; gap: 16px; margin-bottom: 8px; }
+  .history-stat { font-size: 12px; color: #94a3b8; }
+  .history-mono { font-family: 'DM Mono', monospace; }
+  .history-rec { font-size: 12px; color: #64748b; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- PROFILE SCREEN -->
+<div id="profile-screen" class="screen active">
+  <div class="profile-inner">
+    <div style="text-align:center; margin-bottom:48px;">
+      <div class="profile-logo">💪</div>
+      <div class="profile-title">Training OS</div>
+      <div class="profile-subtitle">Välj din profil för att fortsätta</div>
+    </div>
+    <button class="profile-card" onclick="selectProfile('ebrahim')">
+      <div class="profile-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">🏃</div>
+      <div>
+        <div class="profile-name">Ebrahim</div>
+        <div class="profile-meta">HRV baseline 77 ms · Max 211 bpm</div>
+      </div>
+      <div class="profile-arrow">→</div>
+    </button>
+    <button class="profile-card" onclick="selectProfile('zehra')" style="border-radius:16px;">
+      <div class="profile-icon" style="background:linear-gradient(135deg,#ec4899,#f43f5e)">🚴</div>
+      <div>
+        <div class="profile-name">Zehra</div>
+        <div class="profile-meta">HRV baseline 35.8 ms · Max 199 bpm</div>
+      </div>
+      <div class="profile-arrow" style="color:#ec4899">→</div>
+    </button>
+  </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div id="api-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">API-nyckel</div>
+    <div class="modal-desc">
+      Din nyckel lagras lokalt på enheten och skickas aldrig vidare.
+      Hämta den på <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+    </div>
+    <div id="api-status"></div>
+    <input type="password" class="modal-input" id="api-key-input" placeholder="sk-ant-...">
+    <div class="modal-btns">
+      <button class="btn-primary" id="save-key-btn" onclick="saveApiKey()">Spara nyckel</button>
+      <button class="btn-danger" id="clear-key-btn" onclick="clearApiKey()" style="display:none;">Radera</button>
+      <button class="btn-ghost" onclick="closeApiModal()">Stäng</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-screen" class="screen">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-icon" id="header-icon"></div>
+      <div>
+        <div class="header-name" id="header-name"></div>
+        <div class="header-sub">Training OS</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-icon" id="api-btn" onclick="openApiModal()" title="API-inställningar">⚙️</button>
+      <button class="btn-link" onclick="switchProfile()">Byt profil</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('checkin', this)">Check-in</button>
+    <button class="tab-btn" onclick="switchTab('zoner', this)">Pulszoner</button>
+    <button class="tab-btn" onclick="switchTab('historik', this)">Historik</button>
+  </div>
+
+  <div class="content">
+
+    <!-- CHECK-IN -->
+    <div id="tab-checkin" class="tab-content active">
+
+      <!-- FORM VIEW -->
+      <div id="form-view" class="fade-in">
+        <div class="section-title">Dagens check-in</div>
+        <div class="section-sub" id="today-date"></div>
+
+        <div class="field-wrap">
+          <label class="field-label">HRV (ms)</label>
+          <div style="position:relative;">
+            <input type="number" class="field-input" id="hrv-input" placeholder="Ange HRV"
+              oninput="updateHRVSignal()" style="padding-right:90px;">
+            <div class="hrv-badge" id="hrv-badge" style="display:none;">
+              <span id="hrv-emoji"></span>
+              <span class="hrv-label" id="hrv-label"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-wrap">
+          <label class="field-label">Sömn senaste natten (timmar)</label>
+          <input type="number" step="0.5" class="field-input" id="sleep-input"
+            placeholder="Ange timmar" oninput="checkSleep()">
+          <div class="sleep-warn" id="sleep-warn" style="display:none;">⚠️ Under 5h — kondition rekommenderas ej idag</div>
+        </div>
+
+        <div class="field-wrap">
+          <label class="field-label">Dagens styrkepass</label>
+          <div class="workout-grid" id="workout-grid"></div>
+        </div>
+
+        <div class="field-wrap">
+          <label class="field-label">Övrigt (valfritt)</label>
+          <input type="text" class="field-input" id="notes-input"
+            placeholder="Trötthet, ömhet, stress..." style="font-family:'DM Sans',sans-serif; font-size:14px;">
+        </div>
+
+        <button class="btn-submit" id="submit-btn" onclick="getRecommendation()" disabled>
+          Få rekommendation →
+        </button>
+      </div>
+
+      <!-- RESULT VIEW -->
+      <div id="result-view" style="display:none;" class="fade-in">
+        <div class="result-summary">
+          <div class="result-signal">
+            <div class="result-emoji" id="res-emoji"></div>
+            <div class="result-slabel" id="res-slabel"></div>
+          </div>
+          <div>
+            <div class="result-meta">HRV · Sömn · Pass</div>
+            <div class="result-values" id="res-values"></div>
+          </div>
+        </div>
+        <div class="result-box" id="result-box">
+          <div class="loading-wrap" id="loading-wrap">
+            <div class="spinner" id="spinner"></div>
+            <span style="font-size:14px;">Analyserar din data...</span>
+          </div>
+          <div class="result-text" id="result-text" style="display:none;"></div>
+        </div>
+        <button class="btn-back" id="back-btn" onclick="resetForm()">← Ny check-in</button>
+      </div>
+
+    </div>
+
+    <!-- PULSZONER -->
+    <div id="tab-zoner" class="tab-content">
+      <div class="section-title">Pulszoner</div>
+      <div class="section-sub" id="zones-sub"></div>
+      <div id="zones-list"></div>
+      <div id="restriction-box"></div>
+      <div class="hrv-card">
+        <div class="hrv-card-title">HRV-trafikljus</div>
+        <div id="hrv-traffic"></div>
+      </div>
+    </div>
+
+    <!-- HISTORIK -->
+    <div id="tab-historik" class="tab-content">
+      <div class="history-header">
+        <div class="section-title">Historik</div>
+        <button class="btn-clear" id="clear-btn" onclick="clearHistory()" style="display:none;">Rensa</button>
+      </div>
+      <div class="section-sub">Sparas automatiskt per profil</div>
+      <div id="history-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PROFILES = {
+  ebrahim: {
+    name: "Ebrahim", icon: "🏃",
+    accent: "#6366f1",
+    grad: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+    maxHR: 211, ltHR: 187,
+    hrvBaseline: 77, hrvGreen: 75, hrvYellow: 65,
+    sleepNeed: 8,
+    zones: [
+      { zone:"Z1", name:"Återhämtning", min:0,   max:127, color:"#4ade80" },
+      { zone:"Z2", name:"Aerob bas",    min:127, max:148, color:"#86efac" },
+      { zone:"Z3", name:"Tempo",        min:148, max:169, color:"#fbbf24" },
+      { zone:"Z4", name:"Tröskel",      min:169, max:187, color:"#f97316" },
+      { zone:"Z5", name:"VO₂max",       min:187, max:201, color:"#ef4444" },
+    ],
+    cardioOn: ["Upper","Pull","Push"],
+    noCardio: ["Lower","Legs"],
+    workouts: ["Upper","Lower","Pull","Push","Legs","Vila"],
+    restrictions: null,
+    systemPrompt: `Du är en personlig träningscoach för Ebrahim Oro. Hans profil:
+- Maxpuls: 211 bpm, Laktattröskel: 187 bpm vid 5:00 min/km
+- VO₂max: ~50 ml/kg/min (mål: 52+)
+- HRV-baseline: ~77 ms. Grön: ≥75, Gul: 65-74, Röd: <65
+- Kör Nippard Block 2: Upper/Lower/Pull/Push/Legs (rullande 8-9 dagar)
+- Kondition BARA på Upper, Pull, Push-dagar (ALDRIG Lower/Legs)
+- Primär modalitet: löpning utomhus, komplement: inomhuscykling
+
+Konditionspass:
+- Pass 1 (Zon 2): 127-148 bpm, 35-45 min, efter Pull
+- Pass 2 (VO₂max intervaller): 4×4 min på 190-201 bpm, efter Upper
+- Pass 3 (Tröskel/Zon2): 169-187 bpm om grön HRV, annars Zon 2, efter Push
+
+HRV+Sömn-matris:
+- Grön (≥75) + ≥7h sömn → fullt planerat pass
+- Grön + <7h → skippa sista intervallset
+- Gul (65-74) + ≥7h → planerat, välj Zon 2 framför tröskel
+- Gul + <7h → byt till Pass 1 (Zon 2, 30 min)
+- Röd (<65) → 20-25 min Zon 2 eller vila
+- <5h sömn → hoppa över kondition oavsett HRV
+
+Ge en konkret, direkt rekommendation på svenska. Max 150 ord. Inkludera:
+1. HRV-signal (🟢/🟡/🔴) och kort tolkning
+2. Exakt konditionsrekommendation med puls/tempo
+3. Om Lower/Legs: bekräfta att ingen kondition idag
+Var direkt och handlingsbar. Inga långa förklaringar.`
+  },
+  zehra: {
+    name: "Zehra", icon: "🚴",
+    accent: "#ec4899",
+    grad: "linear-gradient(135deg,#ec4899,#f43f5e)",
+    maxHR: 199, ltHR: 181,
+    hrvBaseline: 35.8, hrvGreen: 39, hrvYellow: 30,
+    sleepNeed: 8.3,
+    zones: [
+      { zone:"Z1", name:"Återhämtning", min:0,   max:136, color:"#4ade80" },
+      { zone:"Z2", name:"Aerob bas",    min:136, max:153, color:"#86efac" },
+      { zone:"Z3", name:"Tempo",        min:153, max:172, color:"#fbbf24" },
+      { zone:"Z4", name:"Tröskel",      min:172, max:181, color:"#f97316" },
+      { zone:"Z5", name:"VO₂max",       min:181, max:199, color:"#ef4444" },
+    ],
+    cardioOn: ["Workout A","Workout C"],
+    noCardio: ["Workout B","Workout D"],
+    workouts: ["Workout A","Workout B","Workout C","Workout D","Vila"],
+    restrictions: "Meniskruptur — ingen löpning, jogging, trappmaskin eller plyometrics.",
+    systemPrompt: `Du är en personlig träningscoach för Zehra. Hennes profil:
+- Maxpuls: 199 bpm, Laktattröskel: 181 bpm, FTP: 264 W
+- HRV-baseline: ~35.8 ms. Grön: >39, Gul: 30-39, Röd: <30
+- Meniskruptur: ALDRIG löpning, trappmaskin eller plyometrics
+- Kör Upper/Lower split: Workout A, B, C, D
+- Kondition BARA på Workout A och C (ALDRIG B eller D)
+- Modaliteter: inomhuscykling och elliptical
+
+Konditionspass:
+- Pass 1 (Zon 2): 136-153 bpm, 35-45 min cykel eller elliptical
+- Pass 2 (VO₂max): 4×4 min på 181-195 bpm (280-320 W på cykel)
+- Pass 3 (Tröskel): 172-181 bpm om grön HRV, annars Zon 2
+
+HRV+Sömn-matris:
+- Grön (>39) + ≥6h → fullt planerat pass
+- Grön + <6h → skippa sista intervallset
+- Gul (30-39) + ≥6h → planerat, Zon 2 framför tröskel
+- Gul + <6h → byt till Pass 1 (Zon 2, 30 min)
+- Röd (<30) → 20-25 min Zon 2 eller vila
+- <5h sömn → hoppa över kondition
+
+Ge en konkret rekommendation på svenska. Max 150 ord. Inkludera:
+1. HRV-signal (🟢/🟡/🔴) och kort tolkning
+2. Exakt konditionsrekommendation
+3. Om B/D-dag: bekräfta ingen kondition
+Aldrig rekommendera löpning eller trappmaskin.`
+  }
+};
+
+let currentProfile = null;
+let selectedWorkout = null;
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+
+function getApiKey() { return localStorage.getItem('trainingapp_apikey') || ''; }
+
+function getHRVSignal(hrv) {
+  const p = PROFILES[currentProfile];
+  const v = parseFloat(hrv);
+  if (v >= p.hrvGreen) return { emoji:'🟢', label:'GRÖN', color:'#22c55e' };
+  if (v >= p.hrvYellow) return { emoji:'🟡', label:'GUL', color:'#eab308' };
+  return { emoji:'🔴', label:'RÖD', color:'#ef4444' };
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('history_' + currentProfile) || '[]'); } catch { return []; }
+}
+
+function saveHistory(h) {
+  localStorage.setItem('history_' + currentProfile, JSON.stringify(h));
+}
+
+// ─── PROFILE ─────────────────────────────────────────────────────────────────
+
+function selectProfile(key) {
+  currentProfile = key;
+  const p = PROFILES[key];
+
+  document.getElementById('profile-screen').classList.remove('active');
+  document.getElementById('main-screen').style.display = 'block';
+
+  // Header
+  const icon = document.getElementById('header-icon');
+  icon.textContent = p.icon;
+  icon.style.background = p.grad;
+  document.getElementById('header-name').textContent = p.name;
+
+  // Tabs accent
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.style.color = '';
+    b.style.borderBottomColor = '';
+  });
+  document.querySelector('.tab-btn.active').style.color = p.accent;
+  document.querySelector('.tab-btn.active').style.borderBottomColor = p.accent;
+
+  // API button color
+  document.getElementById('api-btn').style.filter = getApiKey() ? 'none' : 'sepia(1) saturate(5) hue-rotate(-30deg)';
+
+  // Date
+  document.getElementById('today-date').textContent =
+    new Date().toLocaleDateString('sv-SE', { weekday:'long', day:'numeric', month:'long' });
+
+  // Workout grid
+  const grid = document.getElementById('workout-grid');
+  grid.innerHTML = '';
+  p.workouts.forEach(w => {
+    const btn = document.createElement('button');
+    btn.className = 'workout-btn';
+    btn.style.borderColor = '#1e1e2e';
+    btn.style.color = '#94a3b8';
+    const isCardio = p.cardioOn.includes(w);
+    const noCardio = p.noCardio.includes(w);
+    btn.innerHTML = `${w}<div class="workout-tag">${isCardio ? '+ kondition' : noCardio ? 'Ingen kondition' : ''}</div>`;
+    btn.onclick = () => selectWorkoutBtn(w, btn);
+    grid.appendChild(btn);
+  });
+
+  // Zones tab
+  document.getElementById('zones-sub').textContent = `Maxpuls ${p.maxHR} bpm · Laktattröskel ${p.ltHR} bpm`;
+  const zList = document.getElementById('zones-list');
+  zList.innerHTML = '';
+  p.zones.forEach(z => {
+    const pct = Math.min(((z.max - z.min) / p.maxHR) * 250, 100);
+    zList.innerHTML += `
+      <div class="zone-card">
+        <div class="zone-icon" style="background:${z.color}22;border:1px solid ${z.color}44;color:${z.color}">${z.zone}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;">
+            <span class="zone-name">${z.name}</span>
+            <span class="zone-bpm">${z.min}–${z.max} bpm</span>
+          </div>
+          <div class="zone-bar-bg"><div class="zone-bar" style="width:${pct}%;background:${z.color}"></div></div>
+        </div>
+      </div>`;
+  });
+
+  // Restriction
+  const rb = document.getElementById('restriction-box');
+  rb.innerHTML = p.restrictions
+    ? `<div class="restriction-box"><div style="color:#ef4444;font-size:13px;font-weight:600;margin-bottom:4px;">⚠️ Begränsning</div><div style="color:#fca5a5;font-size:13px;">${p.restrictions}</div></div>`
+    : '';
+
+  // HRV traffic
+  document.getElementById('hrv-traffic').innerHTML = `
+    <div class="hrv-row"><span class="hrv-emoji">🟢</span><div><span class="hrv-info-label">GRÖN </span><span class="hrv-info-range">≥ ${p.hrvGreen} ms</span><div class="hrv-info-desc">Kör planerat pass</div></div></div>
+    <div class="hrv-row"><span class="hrv-emoji">🟡</span><div><span class="hrv-info-label">GUL </span><span class="hrv-info-range">${p.hrvYellow}–${p.hrvGreen - 1} ms</span><div class="hrv-info-desc">Sänk intensitet ett snäck</div></div></div>
+    <div class="hrv-row"><span class="hrv-emoji">🔴</span><div><span class="hrv-info-label">RÖD </span><span class="hrv-info-range">< ${p.hrvYellow} ms</span><div class="hrv-info-desc">Z2 eller vila</div></div></div>`;
+
+  renderHistory();
+  updateApiStatus();
+  switchTab('checkin', document.querySelectorAll('.tab-btn')[0]);
+}
+
+function switchProfile() {
+  currentProfile = null; selectedWorkout = null;
+  document.getElementById('main-screen').style.display = 'none';
+  document.getElementById('profile-screen').classList.add('active');
+  resetForm();
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.color = '#64748b';
+    b.style.borderBottomColor = 'transparent';
+  });
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  const p = PROFILES[currentProfile];
+  btn.style.color = p.accent;
+  btn.style.borderBottomColor = p.accent;
+
+  if (name === 'historik') renderHistory();
+}
+
+// ─── FORM ─────────────────────────────────────────────────────────────────────
+
+function selectWorkoutBtn(w, btn) {
+  selectedWorkout = w;
+  document.querySelectorAll('.workout-btn').forEach(b => {
+    const p = PROFILES[currentProfile];
+    b.style.borderColor = '#1e1e2e';
+    b.style.background = '#13131a';
+    b.style.color = '#94a3b8';
+    b.style.fontWeight = '400';
+  });
+  const p = PROFILES[currentProfile];
+  btn.style.borderColor = p.accent;
+  btn.style.background = p.accent + '22';
+  btn.style.color = p.accent;
+  btn.style.fontWeight = '600';
+  checkSubmit();
+}
+
+function updateHRVSignal() {
+  const val = document.getElementById('hrv-input').value;
+  const badge = document.getElementById('hrv-badge');
+  if (val && currentProfile) {
+    const sig = getHRVSignal(val);
+    document.getElementById('hrv-emoji').textContent = sig.emoji;
+    document.getElementById('hrv-label').textContent = sig.label;
+    document.getElementById('hrv-label').style.color = sig.color;
+    badge.style.display = 'flex';
+    document.getElementById('hrv-input').style.borderColor = sig.color + '44';
+  } else {
+    badge.style.display = 'none';
+    document.getElementById('hrv-input').style.borderColor = '#1e1e2e';
+  }
+  checkSubmit();
+}
+
+function checkSleep() {
+  const val = parseFloat(document.getElementById('sleep-input').value);
+  document.getElementById('sleep-warn').style.display = (!isNaN(val) && val < 5) ? 'block' : 'none';
+  if (!isNaN(val) && val < 5) {
+    document.getElementById('sleep-input').style.borderColor = '#ef444444';
+  } else {
+    document.getElementById('sleep-input').style.borderColor = '#1e1e2e';
+  }
+  checkSubmit();
+}
+
+function checkSubmit() {
+  const hrv = document.getElementById('hrv-input').value;
+  const sleep = document.getElementById('sleep-input').value;
+  const ok = hrv && sleep && selectedWorkout;
+  const btn = document.getElementById('submit-btn');
+  const p = PROFILES[currentProfile];
+  btn.disabled = !ok;
+  btn.style.background = ok ? p.grad : '';
+}
+
+function resetForm() {
+  document.getElementById('hrv-input').value = '';
+  document.getElementById('sleep-input').value = '';
+  document.getElementById('notes-input').value = '';
+  document.getElementById('sleep-warn').style.display = 'none';
+  document.getElementById('hrv-badge').style.display = 'none';
+  document.getElementById('hrv-input').style.borderColor = '#1e1e2e';
+  document.getElementById('sleep-input').style.borderColor = '#1e1e2e';
+  selectedWorkout = null;
+  document.querySelectorAll('.workout-btn').forEach(b => {
+    b.style.borderColor = '#1e1e2e';
+    b.style.background = '#13131a';
+    b.style.color = '#94a3b8';
+    b.style.fontWeight = '400';
+  });
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('form-view').style.display = 'block';
+  document.getElementById('result-view').style.display = 'none';
+}
+
+// ─── API CALL ─────────────────────────────────────────────────────────────────
+
+async function getRecommendation() {
+  const hrv = document.getElementById('hrv-input').value;
+  const sleep = document.getElementById('sleep-input').value;
+  const notes = document.getElementById('notes-input').value;
+  const apiKey = getApiKey();
+
+  document.getElementById('form-view').style.display = 'none';
+  document.getElementById('result-view').style.display = 'block';
+
+  const sig = getHRVSignal(hrv);
+  document.getElementById('res-emoji').textContent = sig.emoji;
+  document.getElementById('res-slabel').textContent = sig.label;
+  document.getElementById('res-slabel').style.color = sig.color;
+  document.getElementById('res-values').textContent = `${hrv} ms · ${sleep}h · ${selectedWorkout}`;
+
+  const p = PROFILES[currentProfile];
+  const box = document.getElementById('result-box');
+  box.style.border = `1px solid ${p.accent}33`;
+  box.style.background = '#13131a';
+  const spinner = document.getElementById('spinner');
+  spinner.style.borderColor = p.accent;
+  spinner.style.borderTopColor = 'transparent';
+  document.getElementById('back-btn').style.borderColor = p.accent;
+  document.getElementById('back-btn').style.color = p.accent;
+  document.getElementById('loading-wrap').style.display = 'flex';
+  document.getElementById('result-text').style.display = 'none';
+
+  if (!apiKey) {
+    showResult('Ingen API-nyckel inlagd. Tryck på ⚙️ uppe till höger och lägg till din Anthropic API-nyckel.', hrv, sleep);
+    return;
+  }
+
+  try {
+    const userMsg = `Mitt pass idag: ${selectedWorkout}. HRV: ${hrv} ms. Sömn senaste natten: ${sleep} timmar.${notes ? ` Övrigt: ${notes}` : ''}`;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: p.systemPrompt,
+        messages: [{ role: 'user', content: userMsg }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const text = data.content?.find(b => b.type === 'text')?.text || 'Kunde inte generera rekommendation.';
+    showResult(text, hrv, sleep);
+  } catch (e) {
+    showResult('Något gick fel: ' + e.message, hrv, sleep);
+  }
+}
+
+function showResult(text, hrv, sleep) {
+  document.getElementById('loading-wrap').style.display = 'none';
+  const rt = document.getElementById('result-text');
+  rt.textContent = text;
+  rt.style.display = 'block';
+
+  // Save to history
+  const sig = getHRVSignal(hrv);
+  const entry = {
+    date: new Date().toLocaleDateString('sv-SE'),
+    time: new Date().toLocaleTimeString('sv-SE', { hour:'2-digit', minute:'2-digit' }),
+    workout: selectedWorkout, hrv, sleep,
+    signal: sig,
+    rec: text.slice(0, 100) + (text.length > 100 ? '...' : '')
+  };
+  const h = getHistory();
+  h.unshift(entry);
+  saveHistory(h.slice(0, 30));
+}
+
+// ─── HISTORY ─────────────────────────────────────────────────────────────────
+
+function renderHistory() {
+  const h = getHistory();
+  const list = document.getElementById('history-list');
+  document.getElementById('clear-btn').style.display = h.length > 0 ? 'block' : 'none';
+
+  if (h.length === 0) {
+    list.innerHTML = `<div class="history-empty"><div style="font-size:32px;margin-bottom:12px;">📋</div><p style="color:#64748b;font-size:14px;">Inga check-ins ännu.</p></div>`;
+    return;
+  }
+  list.innerHTML = h.map(e => `
+    <div class="history-card">
+      <div class="history-top">
+        <span class="history-workout">${e.workout}</span>
+        <span class="history-date">${e.date} ${e.time}</span>
+      </div>
+      <div class="history-stats">
+        <span class="history-stat">${e.signal?.emoji || ''} HRV: <span class="history-mono">${e.hrv} ms</span></span>
+        <span class="history-stat">😴 Sömn: <span class="history-mono">${e.sleep}h</span></span>
+      </div>
+      <div class="history-rec">${e.rec}</div>
+    </div>`).join('');
+}
+
+function clearHistory() {
+  localStorage.removeItem('history_' + currentProfile);
+  renderHistory();
+}
+
+// ─── API MODAL ────────────────────────────────────────────────────────────────
+
+function openApiModal() {
+  updateApiStatus();
+  document.getElementById('api-modal').style.display = 'flex';
+}
+
+function closeApiModal() {
+  document.getElementById('api-modal').style.display = 'none';
+  document.getElementById('api-key-input').value = '';
+}
+
+function updateApiStatus() {
+  const key = getApiKey();
+  const status = document.getElementById('api-status');
+  const clearBtn = document.getElementById('clear-key-btn');
+  const apiBtnIcon = document.getElementById('api-btn');
+
+  if (key) {
+    status.innerHTML = `<div class="api-status-ok"><span style="font-size:16px;">✅</span><div><div style="color:#22c55e;font-size:13px;font-weight:600;">Nyckel inlagd</div><div style="color:#64748b;font-size:12px;font-family:'DM Mono',monospace;">${key.slice(0,12)}...${key.slice(-4)}</div></div></div>`;
+    clearBtn.style.display = 'block';
+    apiBtnIcon.style.filter = 'none';
+  } else {
+    status.innerHTML = `<div class="api-status-err"><div style="color:#ef4444;font-size:13px;">⚠️ Ingen API-nyckel — appen fungerar inte utan den.</div></div>`;
+    clearBtn.style.display = 'none';
+    apiBtnIcon.style.filter = 'sepia(1) saturate(5) hue-rotate(-30deg)';
+  }
+}
+
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val) return;
+  localStorage.setItem('trainingapp_apikey', val);
+  document.getElementById('api-key-input').value = '';
+  const btn = document.getElementById('save-key-btn');
+  btn.textContent = '✓ Sparad!';
+  updateApiStatus();
+  setTimeout(() => { btn.textContent = 'Spara nyckel'; closeApiModal(); }, 1200);
+}
+
+function clearApiKey() {
+  localStorage.removeItem('trainingapp_apikey');
+  updateApiStatus();
+}
+</script>
+</body>
+</html>
